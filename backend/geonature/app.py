@@ -72,6 +72,7 @@ def create_app(with_external_mods=True):
     api_uri = urlsplit(app.config['API_ENDPOINT'])
     app.config['APPLICATION_ROOT'] = api_uri.path
     app.config['PREFERRED_URL_SCHEME'] = api_uri.scheme
+    # app.config['SQLALCHEMY_ECHO'] = True
     if 'SCRIPT_NAME' not in os.environ:
         os.environ['SCRIPT_NAME'] = app.config['APPLICATION_ROOT'].rstrip('/')
     app.config['TEMPLATES_AUTO_RELOAD'] = True
