@@ -80,7 +80,6 @@ cor_object_module = DB.Table(
     DB.Column(
         "id_cor_object_module", DB.Integer, primary_key=True,
     ),
-    
     DB.Column(
         "id_object", DB.Integer,
           ForeignKey("gn_permissions.t_objects.id_object"),
