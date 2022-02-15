@@ -9,6 +9,7 @@ CHANGELOG
 
 * Simplification du CRUVED minimum pour accéder à GeoNature, ne nécessitant plus d'avoir obligatoirement un CRUVED défini au niveau global de GeoNature (#1622)
 * Ajout de la commande ``geonature db status``
+* Suppression de la table ``gn_sensitivity.cor_sensitivity_synthese`` et des triggers associés.
 
 **⚠️ Notes de version**
 
