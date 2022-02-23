@@ -66,16 +66,16 @@ export class MediaComponent implements OnInit {
     let afterDisplay = false;
     let mediaDetailsFields = this.mediaFormDefinition.filter(field => {
       if (afterDisplay && field.hidden !== true){
-        return true; 
+        return true;
       }
       if (field.attribut_name == "displayDetails"){
         afterDisplay = true;
       }
       return false;
     } );
-      
+
     //Si la liste de champs à afficher dans detail est différente de la liste des champs details
-    if(mediaDetailsFields.length > 0 && this.details.length != mediaDetailsFields.length){
+    if(mediaDetailsFields.length > 0 && (this.details || []).length != mediaDetailsFields.length){
       let outDetailsFields = this.mediaFormDefinition.filter(field => !this.details.includes(field.attribut_name) && mediaDetailsFields.includes(field));
       const cMediaFormDefinition = this.mediaFormDefinition;
       const newMediaFormDefinition = [];
