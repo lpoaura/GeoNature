@@ -26,7 +26,7 @@ CREATE TABLE ref_geo.l_linears (
     linear_name VARCHAR NOT NULL,
     linear_code VARCHAR NOT NULL,
     enable BOOLEAN,
-    geom GEOMETRY(GEOMETRY, FIND_SRID('ref_geo', 'l_areas', 'geom')),
+    geom GEOMETRY(GEOMETRY, :local_srid),
     geojson_4326 VARCHAR,
     source character varying(250),
     additional_data jsonb NULL,

@@ -20,8 +20,9 @@ depends_on = (
 
 
 def upgrade():
+    local_srid = op.get_bind().execute("SELECT FIND_SRID('ref_geo', 'l_areas', 'geom');").fetchone()[0]
     stmt = text(importlib.resources.read_text('geonature.migrations.data.core', 'ref_geo_linear.sql'))
-    op.get_bind().execute(stmt)
+    op.get_bind().execute(stmt, {'local_srid': local_srid})
 
 
 def downgrade():
