@@ -38,7 +38,59 @@ class LAreas(DB.Model):
     meta_update_date = DB.Column(DB.DateTime, default=datetime.now, onupdate=datetime.now)
     area_type = DB.relationship("BibAreasTypes", lazy="select")
 
+@serializable
+class BibLinearsTypes(DB.Model):
+    __tablename__ = "bib_linears_types"
+    __table_args__ = {"schema": "ref_geo"}
+    id_type = DB.Column(DB.Integer, primary_key=True)
+    type_name = DB.Column(DB.Unicode)
+    type_code = DB.Column(DB.Unicode)
+    type_desc = DB.Column(DB.Unicode)
+    ref_name = DB.Column(DB.Unicode)
+    ref_version = DB.Column(DB.Integer)
+    num_version = DB.Column(DB.Unicode)
 
+
+@serializable
+class TLinearGroups(DB.Model):
+    __table_name__ = "l_linear_groups"
+    __table_args__ = {"schema": "ref_geo"}
+    id_group = DB.Column(DB.Integer, primary_key=True)
+    id_type = DB.Column(DB.Integer, ForeignKey("ref_geo.bib_linears_types.id_type"))
+    group_name = DB.Column(DB.Unicode)
+    group_code = DB.Column(DB.Unicode)
+    linear_type = DB.relationship("BibLinearsTypes", lazy="select")
+
+
+class CorLinearGroup(DB.Model):
+    __table_name__ = "cor_linear_group"
+    __table_args__ = {"schema": "ref_geo"}
+    id_group = DB.Column(
+        DB.Integer,
+        ForeignKey("ref_geo.t_linear_groups.id_group"),
+        primary_key=True,
+    )
+    id_linear = DB.Column(
+        DB.Integer,
+        ForeignKey("ref_geo.l_linears.id_linear"),
+        primary_key=True,
+    )
+
+@geoserializable
+class LLinears(DB.Model):
+    __tablename__ = "l_linears"
+    __table_args__ = {"schema": "ref_geo"}
+    id_linear = DB.Column(DB.Integer, primary_key=True)
+    id_type = DB.Column(DB.Integer, ForeignKey("ref_geo.bib_linears_types.id_type"))
+    linear_name = DB.Column(DB.Unicode)
+    linear_code = DB.Column(DB.Unicode)
+    geom = DB.Column(Geometry("GEOMETRY", config["LOCAL_SRID"]))
+    source = DB.Column(DB.Unicode)
+    # enable = DB.Column(DB.Boolean, nullable=False, default=True)
+    meta_create_date = DB.Column(DB.DateTime, default=datetime.now)
+    meta_update_date = DB.Column(DB.DateTime, default=datetime.now, onupdate=datetime.now)
+    linear_type = DB.relationship("BibLinearsTypes", lazy="select")
+    groups = DB.relationship("TLinearGroups", secondary=CorLinearGroup.__table__)
 @serializable
 class LiMunicipalities(DB.Model):
     __tablename__ = "li_municipalities"
