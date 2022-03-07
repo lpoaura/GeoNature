@@ -9,9 +9,6 @@ import importlib
 from alembic import op, context
 import sqlalchemy as sa
 from sqlalchemy.sql import text
-from geonature.migrations.ref_geo_utils import (
-    get_local_srid,
-)
 
 # revision identifiers, used by Alembic.
 revision = 'f7374cd6e38d'
@@ -23,9 +20,8 @@ depends_on = (
 
 
 def upgrade():
-    local_srid = get_local_srid()
     stmt = text(importlib.resources.read_text('geonature.migrations.data.core', 'ref_geo_linear.sql'))
-    op.get_bind().execute(stmt, {'local_srid': local_srid})
+    op.get_bind().execute(stmt)
 
 
 def downgrade():
