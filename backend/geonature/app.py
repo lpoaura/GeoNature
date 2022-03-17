@@ -91,6 +91,7 @@ def create_app(with_external_mods=True):
 
     app.json_encoder = MyJSONEncoder
 
+
     # set logging config
     config_loggers(app.config)
 
