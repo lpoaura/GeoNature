@@ -18,6 +18,7 @@ import { DiscussionCardComponent } from '@geonature/shared/discussionCardModule/
 import { TaxonSheetComponent } from './taxon-sheet/taxon-sheet.component';
 const routes: Routes = [
   { path: '', component: SyntheseComponent },
+  {path: "occurrence/:id_synthese", component: SyntheseComponent, pathMatch: "full"},
   { path: 'taxon/:cd_nom', component: TaxonSheetComponent },
 ];
 

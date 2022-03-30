@@ -4,11 +4,9 @@ import {
   OnChanges,
   Input,
   ViewChild,
-  AfterViewInit,
   SimpleChanges,
-  Output,
-  EventEmitter
 } from '@angular/core';
+import { Clipboard } from '@angular/cdk/clipboard';
 import { SyntheseDataService } from '@geonature_common/form/synthese-form/synthese-data.service';
 import { MapService } from '@geonature_common/map/map.service';
 import { CommonService } from '@geonature_common/service/common.service';
@@ -17,7 +15,6 @@ import { AppConfig } from '@geonature_config/app.config';
 import { NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
 import { MediaService } from '@geonature_common/service/media.service';
 import { finalize } from 'rxjs/operators';
-import { constants } from 'crypto';
 import { GlobalSubService } from '@geonature/services/global-sub.service';
 
 @Component({
@@ -31,6 +28,7 @@ export class SyntheseInfoObsComponent implements OnInit, OnChanges {
   @Input() header: false;
   @Input() mailCustomSubject: string;
   @Input() mailCustomBody: string;
+  @Input() useFrom: "synthese" | "validation"
   public selectedObs: any;
   public validationHistory: Array<any>;
   public selectedObsTaxonDetail: any;
@@ -69,7 +67,8 @@ export class SyntheseInfoObsComponent implements OnInit, OnChanges {
     public mediaService: MediaService,
     private _commonService: CommonService,
     private _mapService: MapService,
-    private globalSubService: GlobalSubService
+    private globalSubService: GlobalSubService,
+    private _clipboard: Clipboard
   ) { }
 
   ngOnInit() {
@@ -283,7 +282,11 @@ export class SyntheseInfoObsComponent implements OnInit, OnChanges {
     window.open(url_source + '/' + id_pk_source, '_blank');
   }
 
-  displaySuccessToaster() {
-    this._commonService.translateToaster('info', 'Synthese.copy')
+
+  copyToClipBoard() {
+    this._clipboard.copy(
+      `${AppConfig.URL_APPLICATION}/#/${this.useFrom}/occurrence/${this.selectedObs.id_synthese}`
+      );
+      this._commonService.translateToaster('info', 'Synthese.copy');
   }
 }
