@@ -38,10 +38,7 @@ import { IntroductionComponent } from '../custom/components/introduction/introdu
 import { AuthService } from './components/auth/auth.service';
 import { CookieService } from 'ng2-cookies';
 import { ChartsModule } from 'ng2-charts';
-import {
-  AuthGuard,
-  ModuleGuardService,
-} from '@geonature/routing/routes-guards.service';
+import { AuthGuard, ModuleGuardService } from '@geonature/routing/routes-guards.service';
 import { ModuleService } from './services/module.service';
 import { CruvedStoreService } from './GN2CommonModule/service/cruved-store.service';
 import { SideNavService } from './components/sidenav-items/sidenav-service';
@@ -61,7 +58,8 @@ import { Router } from '@angular/router';
 
 export function getModulesAndInitRouting(moduleService: ModuleService, router: Router) {
   return () => {
-    return moduleService.fetchModulesAndSetRouting().toPromise(); };
+    return moduleService.fetchModulesAndSetRouting().toPromise();
+  };
 }
 
 @NgModule({
@@ -113,7 +111,12 @@ export function getModulesAndInitRouting(moduleService: ModuleService, router: R
     { provide: HTTP_INTERCEPTORS, useClass: MyCustomInterceptor, multi: true },
     { provide: HTTP_INTERCEPTORS, useClass: UnauthorizedInterceptor, multi: true },
     // { provide: APP_INITIALIZER, useFactory: get_cruved, deps: [CruvedStoreService], multi: true},
-    { provide: APP_INITIALIZER, useFactory: getModulesAndInitRouting, deps: [ModuleService, Router], multi: true },
+    {
+      provide: APP_INITIALIZER,
+      useFactory: getModulesAndInitRouting,
+      deps: [ModuleService, Router],
+      multi: true,
+    },
   ],
   bootstrap: [AppComponent],
 })
