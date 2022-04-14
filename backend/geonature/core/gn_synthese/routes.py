@@ -13,12 +13,13 @@ from sqlalchemy.orm import exc
 from geojson import FeatureCollection, Feature
 import sqlalchemy as sa
 
-from utils_flask_sqla.generic import serializeQuery, GenericTable
+from utils_flask_sqla.generic import serializeQuery, GenericTable, GenericQuery
 from utils_flask_sqla.response import to_csv_resp, to_json_resp, json_resp
 from utils_flask_sqla_geo.generic import GenericTableGeo
 
 
 from geonature.utils import filemanager
+from geonature.utils.config import config
 from geonature.utils.env import DB
 from geonature.utils.errors import GeonatureApiError
 from geonature.utils.utilsgeometrytools import export_as_geo_file
@@ -31,6 +32,7 @@ from geonature.core.gn_synthese.models import (
     DefaultsNomenclaturesValue,
     VSyntheseForWebApp,
     VColorAreaTaxon,
+    TLogSynthese,
 )
 from geonature.core.gn_synthese.synthese_config import MANDATORY_COLUMNS
 from geonature.core.taxonomie.models import (
@@ -158,7 +160,9 @@ def get_observations_for_web(info_role):
             "cd_nom": r["cd_nom"],
             "nom_vern_or_lb_nom": r["nom_vern"] if r["nom_vern"] else r["lb_nom"],
             "lb_nom": r["lb_nom"],
-            "count_min_max": '{} - {}'.format(r["count_min"], r["count_max"]) if r["count_min"] != r["count_max"] else str(r["count_min"] or ''),
+            "count_min_max": "{} - {}".format(r["count_min"], r["count_max"])
+            if r["count_min"] != r["count_max"]
+            else str(r["count_min"] or ""),
             "dataset_name": r["dataset_name"],
             "observers": r["observers"],
             "url_source": r["url_source"],
@@ -205,7 +209,6 @@ def get_synthese(info_role):
     synthese_query_class.filter_query_all_filters(info_role)
     data = DB.engine.execute(synthese_query_class.query.limit(result_limit))
 
-
     # q = synthese_query.filter_query_all_filters(VSyntheseForWebApp, q, filters, info_role)
 
     # data = q.limit(result_limit)
@@ -213,9 +216,7 @@ def get_synthese(info_role):
     features = []
     for d in data:
         feature = d.get_geofeature(fields=columns)
-        feature["properties"]["nom_vern_or_lb_nom"] = (
-            d.lb_nom if d.nom_vern is None else d.nom_vern
-        )
+        feature["properties"]["nom_vern_or_lb_nom"] = d.lb_nom if d.nom_vern is None else d.nom_vern
         features.append(feature)
     return {
         "data": FeatureCollection(features),
@@ -227,47 +228,49 @@ def get_synthese(info_role):
 @routes.route("/vsynthese/<id_synthese>", methods=["GET"])
 @permissions.check_cruved_scope("R", True, module_code="SYNTHESE")
 def get_one_synthese(info_role, id_synthese):
-    """Get one synthese record for web app with all decoded nomenclature
-    """
+    """Get one synthese record for web app with all decoded nomenclature"""
     synthese = Synthese.query.join_nomenclatures().get_or_404(id_synthese)
     if not synthese.has_instance_permission(scope=int(info_role.value_filter)):
         raise Forbidden()
     geojson = synthese.as_geofeature(
-        "the_geom_4326", "id_synthese",
-        fields=Synthese.nomenclature_fields + [
-            'dataset',
-            'dataset.acquisition_framework',
-            'dataset.acquisition_framework.bibliographical_references',
-            'dataset.acquisition_framework.cor_af_actor',
-            'dataset.acquisition_framework.cor_objectifs',
-            'dataset.acquisition_framework.cor_territories',
-            'dataset.acquisition_framework.cor_volets_sinp',
-            'dataset.acquisition_framework.creator',
-            'dataset.acquisition_framework.nomenclature_territorial_level',
-            'dataset.acquisition_framework.nomenclature_financing_type',
-            'dataset.cor_dataset_actor',
-            'dataset.cor_dataset_actor.role',
-            'dataset.cor_dataset_actor.organism',
-            'dataset.cor_territories',
-            'dataset.nomenclature_source_status',
-            'dataset.nomenclature_resource_type',
-            'dataset.nomenclature_dataset_objectif',
-            'dataset.nomenclature_data_type',
-            'dataset.nomenclature_data_origin',
-            'dataset.nomenclature_collecting_method',
-            'dataset.creator',
-            'dataset.modules',
-            'validations',
-            'validations.validation_label',
-            'validations.validator_role',
-            'cor_observers',
-            'cor_observers.organisme',
-            'source',
-            'habitat',
-            'medias',
-            'areas',
-            'areas.area_type',
-        ])
+        "the_geom_4326",
+        "id_synthese",
+        fields=Synthese.nomenclature_fields
+        + [
+            "dataset",
+            "dataset.acquisition_framework",
+            "dataset.acquisition_framework.bibliographical_references",
+            "dataset.acquisition_framework.cor_af_actor",
+            "dataset.acquisition_framework.cor_objectifs",
+            "dataset.acquisition_framework.cor_territories",
+            "dataset.acquisition_framework.cor_volets_sinp",
+            "dataset.acquisition_framework.creator",
+            "dataset.acquisition_framework.nomenclature_territorial_level",
+            "dataset.acquisition_framework.nomenclature_financing_type",
+            "dataset.cor_dataset_actor",
+            "dataset.cor_dataset_actor.role",
+            "dataset.cor_dataset_actor.organism",
+            "dataset.cor_territories",
+            "dataset.nomenclature_source_status",
+            "dataset.nomenclature_resource_type",
+            "dataset.nomenclature_dataset_objectif",
+            "dataset.nomenclature_data_type",
+            "dataset.nomenclature_data_origin",
+            "dataset.nomenclature_collecting_method",
+            "dataset.creator",
+            "dataset.modules",
+            "validations",
+            "validations.validation_label",
+            "validations.validator_role",
+            "cor_observers",
+            "cor_observers.organisme",
+            "source",
+            "habitat",
+            "medias",
+            "areas",
+            "areas.area_type",
+        ],
+    )
     return jsonify(geojson)
 
 
@@ -321,12 +324,14 @@ def export_taxon_web(info_role):
     # check R and E CRUVED to know if we filter with cruved
     cruved = cruved_scope_for_user_in_module(info_role.id_role, module_code="SYNTHESE")[0]
     sub_query = (
-        select([
-            VSyntheseForWebApp.cd_ref,
-            func.count(distinct(VSyntheseForWebApp.id_synthese)).label("nb_obs"),
-            func.min(VSyntheseForWebApp.date_min).label("date_min"),
-            func.max(VSyntheseForWebApp.date_max).label("date_max")
-        ])
+        select(
+            [
+                VSyntheseForWebApp.cd_ref,
+                func.count(distinct(VSyntheseForWebApp.id_synthese)).label("nb_obs"),
+                func.min(VSyntheseForWebApp.date_min).label("date_min"),
+                func.max(VSyntheseForWebApp.date_max).label("date_max"),
+            ]
+        )
         .where(VSyntheseForWebApp.id_synthese.in_(id_list))
         .group_by(VSyntheseForWebApp.cd_ref)
     )
@@ -414,8 +419,8 @@ def export_observations_web(info_role):
     cruved = cruved_scope_for_user_in_module(info_role.id_role, module_code="SYNTHESE")[0]
     if cruved["R"] > cruved["E"]:
         synthese_query_class.filter_query_with_cruved(info_role)
-    results = DB.session.execute(synthese_query_class.query.limit(
-        current_app.config["SYNTHESE"]["NB_MAX_OBS_EXPORT"])
+    results = DB.session.execute(
+        synthese_query_class.query.limit(current_app.config["SYNTHESE"]["NB_MAX_OBS_EXPORT"])
     )
 
     file_name = datetime.datetime.now().strftime("%Y_%m_%d_%Hh%Mm%S")
@@ -492,17 +497,15 @@ def export_metadata(info_role):
         == VSyntheseForWebApp.id_dataset,
     )
 
-    q = select([
-        distinct(VSyntheseForWebApp.id_dataset), metadata_view.tableDef
-    ])
+    q = select([distinct(VSyntheseForWebApp.id_dataset), metadata_view.tableDef])
     synthese_query_class = SyntheseQuery(VSyntheseForWebApp, q, filters)
     synthese_query_class.add_join(
-        metadata_view.tableDef, 
+        metadata_view.tableDef,
         getattr(
             metadata_view.tableDef.columns,
             current_app.config["SYNTHESE"]["EXPORT_METADATA_ID_DATASET_COL"],
         ),
-         VSyntheseForWebApp.id_dataset
+        VSyntheseForWebApp.id_dataset,
     )
     synthese_query_class.filter_query_all_filters(info_role)
 
@@ -633,7 +636,7 @@ def general_stats(info_role):
         [
             func.count(Synthese.id_synthese),
             func.count(func.distinct(Synthese.cd_nom)),
-            func.count(func.distinct(Synthese.observers))
+            func.count(func.distinct(Synthese.observers)),
         ]
     )
     synthese_query_obj = SyntheseQuery(Synthese, q, {})
@@ -681,9 +684,7 @@ def get_autocomplete_taxons_synthese():
     q = (
         DB.session.query(
             VMTaxrefListForautocomplete,
-            func.similarity(VMTaxrefListForautocomplete.search_name, search_name).label(
-                "idx_trgm"
-            ),
+            func.similarity(VMTaxrefListForautocomplete.search_name, search_name).label("idx_trgm"),
         )
         .distinct()
         .join(Synthese, Synthese.cd_nom == VMTaxrefListForautocomplete.cd_nom)
@@ -769,7 +770,9 @@ def get_color_taxon():
     page = params.get("page", 1, int)
 
     if "offset" in request.args:
-        warn("offset is deprecated, please use page for pagination (start at 1)", DeprecationWarning)
+        warn(
+            "offset is deprecated, please use page for pagination (start at 1)", DeprecationWarning
+        )
         page = (int(request.args["offset"]) / limit) + 1
     id_areas_type = params.getlist("code_area_type")
     cd_noms = params.getlist("cd_nom")
@@ -790,7 +793,6 @@ def get_color_taxon():
         q = q.filter(VColorAreaTaxon.cd_nom.in_(tuple(cd_noms)))
     results = q.paginate(page=page, per_page=limit, error_out=False)
 
-
     return jsonify([d.as_dict() for d in results.items])
 
 
@@ -801,14 +803,14 @@ def get_taxa_count():
     Get taxa count in synthese filtering with generic parameters
 
     .. :quickref: Synthese;
-    
+
     Parameters
     ----------
     id_dataset: `int` (query parameter)
 
     Returns
     -------
-    count: `int`: 
+    count: `int`:
         the number of taxon
     """
     params = request.args
@@ -827,16 +829,16 @@ def get_observation_count():
     Get observations found in a given dataset
 
     .. :quickref: Synthese;
-    
+
     Parameters
     ----------
     id_dataset: `int` (query parameter)
 
     Returns
     -------
-    count: `int`: 
+    count: `int`:
         the number of observation
-    
+
     """
     params = request.args
 
@@ -854,41 +856,42 @@ def get_bbox():
     Get bbbox of observations
 
     .. :quickref: Synthese;
-    
+
     Parameters
     -----------
     id_dataset: int: (query parameter)
 
     Returns
     -------
-        bbox: `geojson`: 
+        bbox: `geojson`:
             the bounding box in geojson
     """
     params = request.args
 
     query = DB.session.query(func.ST_AsGeoJSON(func.ST_Extent(Synthese.the_geom_4326)))
-        
+
     if "id_dataset" in params:
         query = query.filter(Synthese.id_dataset == params["id_dataset"])
     data = query.one()
     if data and data[0]:
         return data[0]
-    return '', 204
+    return "", 204
+
 
 @routes.route("/observation_count_per_column/<column>", methods=["GET"])
 def observation_count_per_column(column):
     """Get observations count group by a given column"""
     if column not in sa.inspect(Synthese).column_attrs:
-        raise BadRequest(f'No column name {column} in Synthese')
+        raise BadRequest(f"No column name {column} in Synthese")
     synthese_column = getattr(Synthese, column)
-    stmt = DB.session.query(
-               func.count(Synthese.id_synthese).label("count"),
-               synthese_column.label(column),
-           ).select_from(
-               Synthese
-           ).group_by(
-               synthese_column
-           )
+    stmt = (
+        DB.session.query(
+            func.count(Synthese.id_synthese).label("count"),
+            synthese_column.label(column),
+        )
+        .select_from(Synthese)
+        .group_by(synthese_column)
+    )
     return jsonify(DB.session.execute(stmt).fetchall())
 
 
@@ -934,3 +937,39 @@ def get_taxa_distribution():
 
     data = query.group_by(rank).all()
     return [{"count": d[0], "group": d[1]} for d in data]
+
+
+if config["SYNTHESE"]["LOG_API"]:
+
+    @routes.route("/log", methods=["get"])
+    @permissions.check_cruved_scope("R", True, module_code="SYNTHESE")
+    @json_resp
+    def list_synthese_log_entries(info_role) -> dict:
+        """Get log history from synthese
+        Parameters
+        ----------
+        info_role : VUsersPermissions
+            User permissions
+        Returns
+        -------
+        dict
+            log action list
+        """
+
+        limit = request.args.get("limit", default=1000, type=int)
+        offset = request.args.get("offset", default=0, type=int)
+
+        args = request.args.to_dict()
+        if "limit" in args:
+            args.pop("limit")
+        if "offset" in args:
+            args.pop("offset")
+        filters = {f: args.get(f) for f in args}
+
+        query = GenericQuery(
+            DB, "v_log_synthese", "gn_synthese", filters=filters, limit=limit, offset=offset
+        )
+
+        data = query.return_query()
+
+        return data
